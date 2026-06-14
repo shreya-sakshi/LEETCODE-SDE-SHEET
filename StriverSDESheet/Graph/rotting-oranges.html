@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍊 Rotting Oranges – Live Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #161920;
+    --card:     #1e2230;
+    --border:   #2a2f42;
+    --fresh:    #22c55e;
+    --rotten:   #f97316;
+    --empty:    #374151;
+    --visited:  #a855f7;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --accent:   #38bdf8;
+    --yellow:   #fbbf24;
+    --red:      #ef4444;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  h1 span { color: var(--rotten); }
+
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 24px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 750px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .panel-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  /* ── GRID ── */
+  #grid-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .grid-row { display: flex; gap: 8px; }
+  .cell {
+    width: 68px; height: 68px;
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 1.7rem;
+    border: 2px solid transparent;
+    transition: all 0.35s cubic-bezier(.4,0,.2,1);
+    position: relative;
+    cursor: default;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cell-label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    position: absolute;
+    bottom: 4px;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+  }
+  .cell-time {
+    font-size: 0.6rem;
+    font-weight: 700;
+    position: absolute;
+    top: 3px; right: 5px;
+    color: var(--yellow);
+  }
+
+  .cell.empty   { background: var(--empty); border-color: #4b5563; }
+  .cell.fresh   { background: #14532d; border-color: var(--fresh); box-shadow: 0 0 12px #22c55e44; }
+  .cell.rotten  { background: #7c2d12; border-color: var(--rotten); box-shadow: 0 0 14px #f9731655; }
+  .cell.rotting {
+    background: #92400e;
+    border-color: var(--yellow);
+    box-shadow: 0 0 18px #fbbf2488;
+    animation: pulse-rot 0.5s ease-in-out;
+  }
+  .cell.active  {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px #38bdf888;
+  }
+  @keyframes pulse-rot {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  button {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #btn-step  { background: var(--accent); color: #0d0f14; }
+  #btn-auto  { background: var(--fresh);  color: #0d0f14; }
+  #btn-reset { background: var(--card);   color: var(--text); border: 1px solid var(--border); }
+  button:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .speed-wrap {
+    display: flex; align-items: center; gap: 8px;
+    justify-content: center; font-size: 0.8rem; color: var(--muted);
+    margin-bottom: 14px;
+  }
+  input[type=range] { accent-color: var(--accent); width: 100px; }
+
+  /* ── STATUS BAR ── */
+  #status-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    min-height: 50px;
+  }
+  #status-bar .highlight { color: var(--yellow); font-weight: 700; }
+  #status-bar .good      { color: var(--fresh);  font-weight: 700; }
+  #status-bar .bad       { color: var(--red);    font-weight: 700; }
+  #status-bar .info      { color: var(--accent); font-weight: 700; }
+
+  /* ── QUEUE VISUALIZER ── */
+  #queue-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 36px;
+    align-items: center;
+  }
+  .q-item {
+    background: var(--card);
+    border: 1px solid var(--rotten);
+    border-radius: 6px;
+    padding: 4px 9px;
+    font-size: 0.72rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--rotten);
+    transition: all 0.3s;
+  }
+  .q-item.current {
+    border-color: var(--yellow);
+    color: var(--yellow);
+    background: #2a1a00;
+  }
+  .q-empty { color: var(--muted); font-size: 0.8rem; font-style: italic; }
+
+  /* ── CODE PANEL ── */
+  #code-view {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.8;
+    white-space: pre;
+    overflow-x: auto;
+    background: #0a0c10;
+    border-radius: 8px;
+    padding: 12px 14px;
+    counter-reset: line;
+  }
+  .code-line {
+    display: block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border-left: 2px solid transparent;
+    transition: all 0.25s;
+  }
+  .code-line.active {
+    background: #1e2a1a;
+    border-left-color: var(--fresh);
+    color: #fff;
+  }
+  .kw  { color: #c792ea; }
+  .fn  { color: #82aaff; }
+  .num { color: #f78c6c; }
+  .cm  { color: #546e7a; }
+  .str { color: #c3e88d; }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .stat-val {
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .stat-lbl { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── LOG ── */
+  #log {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.9;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #0a0c10;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  #log::-webkit-scrollbar { width: 4px; }
+  #log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .log-step { color: var(--yellow); }
+  .log-rot  { color: var(--rotten); }
+  .log-done { color: var(--fresh); font-weight: 700; }
+  .log-fail { color: var(--red);   font-weight: 700; }
+  .log-info { color: var(--accent); }
+
+  /* ── PRESET SELECTOR ── */
+  .preset-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    justify-content: center; margin-bottom: 16px;
+  }
+  .preset-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .preset-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center;
+    font-size: 0.72rem;
+    margin-bottom: 10px;
+  }
+  .leg { display: flex; align-items: center; gap: 5px; }
+  .leg-dot {
+    width: 14px; height: 14px;
+    border-radius: 4px;
+    border: 1.5px solid;
+  }
+  .lg-fresh   { background: #14532d; border-color: var(--fresh); }
+  .lg-rotten  { background: #7c2d12; border-color: var(--rotten); }
+  .lg-empty   { background: var(--empty); border-color: #4b5563; }
+  .lg-rotting { background: #92400e; border-color: var(--yellow); }
+
+  .result-banner {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 800;
+    padding: 12px;
+    border-radius: 10px;
+    margin-top: 10px;
+    display: none;
+  }
+  .result-banner.show { display: block; }
+  .result-banner.win  { background: #14532d; color: var(--fresh);  border: 1px solid var(--fresh); }
+  .result-banner.fail { background: #450a0a; color: var(--red);    border: 1px solid var(--red); }
+</style>
+</head>
+<body>
+
+<h1>🍊 <span>Rotting Oranges</span> – Live Visualizer</h1>
+<p class="subtitle">Watch BFS spread rot step-by-step · See queue, code, and log in real time</p>
+
+<div class="preset-row" id="presets"></div>
+
+<div class="layout">
+
+  <!-- LEFT: Grid + Controls -->
+  <div>
+    <div class="panel">
+      <div class="panel-title">🗺 Orange Grid</div>
+
+      <div class="legend">
+        <div class="leg"><div class="leg-dot lg-fresh"></div>Fresh (1)</div>
+        <div class="leg"><div class="leg-dot lg-rotten"></div>Rotten (2)</div>
+        <div class="leg"><div class="leg-dot lg-empty"></div>Empty (0)</div>
+        <div class="leg"><div class="leg-dot lg-rotting"></div>Just Rotted</div>
+      </div>
+
+      <div id="grid-wrap"></div>
+
+      <div class="controls">
+        <button id="btn-step">⏭ Step</button>
+        <button id="btn-auto">▶ Auto Play</button>
+        <button id="btn-reset">↺ Reset</button>
+      </div>
+      <div class="speed-wrap">
+        Speed: <input type="range" id="speed" min="200" max="2000" step="100" value="800"> <span id="speed-val">800ms</span>
+      </div>
+
+      <div id="status-bar">Press <b>Step</b> or <b>Auto Play</b> to begin!</div>
+
+      <div class="result-banner" id="result-banner"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-title">📊 Live Stats</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val" id="stat-tm" style="color:var(--yellow)">0</div><div class="stat-lbl">Time (tm)</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-cnt" style="color:var(--rotten)">0</div><div class="stat-lbl">Rotted (cnt)</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-fresh" style="color:var(--fresh)">0</div><div class="stat-lbl">Fresh Total</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-q" style="color:var(--accent)">0</div><div class="stat-lbl">Queue Size</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Queue + Code + Log -->
+  <div style="display:flex;flex-direction:column;gap:14px">
+
+    <div class="panel">
+      <div class="panel-title">📬 BFS Queue (FIFO)</div>
+      <div id="queue-wrap"><span class="q-empty">Queue is empty</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">💻 Code Execution</div>
+      <div id="code-view"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">📋 Step Log</div>
+      <div id="log"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  PRESETS
+// ═══════════════════════════════════════════════
+const PRESETS = [
+  { name:"Basic 3×3",    grid:[[2,1,1],[1,1,0],[0,1,1]],  expect:4 },
+  { name:"No Fresh",     grid:[[0,2,0],[2,0,2],[0,2,0]],  expect:0 },
+  { name:"Impossible",   grid:[[2,1,1],[0,0,1],[1,1,1]],  expect:-1},
+  { name:"Already Done", grid:[[0,2,0]],                   expect:0 },
+  { name:"Big 4×5",      grid:[[2,1,1,0,1],[1,1,0,1,1],[0,1,1,2,1],[1,0,1,1,1]], expect:4 },
+];
+
+let currentPreset = 0;
+
+// ═══════════════════════════════════════════════
+//  BFS ALGORITHM — precomputed steps
+// ═══════════════════════════════════════════════
+function computeSteps(origGrid) {
+  const n = origGrid.length, m = origGrid[0].length;
+  const grid = origGrid.map(r => [...r]);
+  const vis  = Array.from({length:n}, () => Array(m).fill(0));
+  const DR = [-1,0,+1,0], DC = [0,1,0,-1];
+
+  const steps = [];
+  const queue = [];
+  let cntFresh = 0;
+
+  // INIT step
+  const initRotten = [];
+  for(let i=0;i<n;i++) for(let j=0;j<m;j++){
+    if(grid[i][j]===2){ queue.push({r:i,c:j,t:0}); vis[i][j]=2; initRotten.push([i,j]); }
+    else vis[i][j]=0;
+    if(grid[i][j]===1) cntFresh++;
+  }
+  steps.push({ type:'init', queue:[...queue], vis:vis.map(r=>[...r]), initRotten, cntFresh,
+    code:[0,1,2,3,4,5], msg:`Found <span class="highlight">${initRotten.length}</span> rotten orange(s) and <span class="good">${cntFresh}</span> fresh orange(s). Queue initialised.` });
+
+  let tm=0, cnt=0, head=0;
+  // BFS
+  while(head < queue.length){
+    const {r,c,t} = queue[head];
+    tm = Math.max(tm, t);
+    steps.push({ type:'dequeue', r,c,t,tm, queue:queue.slice(head), vis:vis.map(r=>[...r]),
+      code:[6,7,8], msg:`⬅ Dequeue orange at <span class="highlight">(${r},${c})</span> rotted at time <span class="highlight">${t}</span>. Max time → <span class="highlight">${tm}</span>` });
+    head++;
+
+    for(let d=0;d<4;d++){
+      const nr=r+DR[d], nc=c+DC[d];
+      const dirs=['⬆ UP','➡ RIGHT','⬇ DOWN','⬅ LEFT'];
+      if(nr<0||nr>=n||nc<0||nc>=m){
+        steps.push({ type:'oob', r,c,nr,nc,dir:dirs[d], queue:queue.slice(head), vis:vis.map(r=>[...r]),
+          code:[9], msg:`${dirs[d]}: (${nr},${nc}) is <span class="bad">out of bounds</span>. Skip.` });
+        continue;
+      }
+      if(vis[nr][nc]!==0){
+        steps.push({ type:'visited', r,c,nr,nc,dir:dirs[d], queue:queue.slice(head), vis:vis.map(r=>[...r]),
+          code:[9], msg:`${dirs[d]}: (${nr},${nc}) already visited (${grid[nr][nc]===0?'empty':'rotten'}). Skip.` });
+        continue;
+      }
+      if(grid[nr][nc]===1){
+        queue.push({r:nr,c:nc,t:t+1});
+        vis[nr][nc]=2; cnt++;
+        steps.push({ type:'rot', r,c,nr,nc,dir:dirs[d], newT:t+1, queue:queue.slice(head), vis:vis.map(r=>[...r]),
+          code:[10,11,12], msg:`${dirs[d]}: Fresh orange at <span class="good">(${nr},${nc})</span> → <span class="bad">ROTTED</span> at time <span class="highlight">${t+1}</span>! Added to queue.` });
+      }
+    }
+  }
+
+  const ok = cnt===cntFresh;
+  steps.push({ type:'end', ok, tm, cnt, cntFresh, queue:[], vis:vis.map(r=>[...r]),
+    code:[13,14], msg: ok
+      ? `✅ Done! All <span class="good">${cntFresh}</span> fresh oranges rotted. Answer = <span class="highlight">${tm}</span>`
+      : `❌ Only rotted <span class="highlight">${cnt}</span>/${cntFresh} fresh oranges. Some unreachable. Answer = <span class="bad">-1</span>` });
+
+  return { steps, cntFresh };
+}
+
+// ═══════════════════════════════════════════════
+//  CODE LINES
+// ═══════════════════════════════════════════════
+const CODE_LINES = [
+  `<span class="cm">// 0. INIT: scan grid, enqueue all rotten</span>`,
+  `<span class="kw">for</span>(i=0; i&lt;n; i++) <span class="kw">for</span>(j=0; j&lt;m; j++) {`,
+  `  <span class="kw">if</span>(grid[i][j] == <span class="num">2</span>) { q.add(<span class="kw">new</span> <span class="fn">Pair</span>(i,j,<span class="num">0</span>)); vis[i][j]=<span class="num">2</span>; }`,
+  `  <span class="kw">else</span> vis[i][j] = <span class="num">0</span>;`,
+  `  <span class="kw">if</span>(grid[i][j] == <span class="num">1</span>) cntFresh++;`,
+  `}`,
+  `<span class="cm">// 6. BFS LOOP</span>`,
+  `<span class="kw">while</span>(!q.isEmpty()) {`,
+  `  <span class="kw">int</span> r=q.peek().row, c=q.peek().col, t=q.peek().tm;`,
+  `  <span class="kw">for</span>(dir=0; dir&lt;4; dir++) {  <span class="cm">// check 4 neighbors</span>`,
+  `    <span class="kw">if</span>(inBounds && vis[nr][nc]==<span class="num">0</span> && grid[nr][nc]==<span class="num">1</span>) {`,
+  `      q.add(<span class="kw">new</span> <span class="fn">Pair</span>(nr,nc, t+<span class="num">1</span>));`,
+  `      vis[nr][nc] = <span class="num">2</span>; cnt++;`,
+  `  } }`,
+  `<span class="kw">if</span>(cnt != cntFresh) <span class="kw">return</span> <span class="num">-1</span>; <span class="kw">return</span> tm;`,
+];
+
+// ═══════════════════════════════════════════════
+//  DOM helpers
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+
+function buildCode(){
+  const cv = $('code-view'); cv.innerHTML='';
+  CODE_LINES.forEach((l,i)=>{
+    const s=document.createElement('span');
+    s.className='code-line'; s.id=`cl-${i}`; s.innerHTML=l+'\n';
+    cv.appendChild(s);
+  });
+}
+
+function highlightCode(lines){
+  CODE_LINES.forEach((_,i)=>{ const el=$(`cl-${i}`); if(el) el.className='code-line'; });
+  (lines||[]).forEach(i=>{ const el=$(`cl-${i}`); if(el) el.className='code-line active'; });
+}
+
+function renderGrid(origGrid, vis, activeCell, newRot){
+  const n=origGrid.length, m=origGrid[0].length;
+  const wrap=$('grid-wrap'); wrap.innerHTML='';
+  for(let i=0;i<n;i++){
+    const row=document.createElement('div'); row.className='grid-row';
+    for(let j=0;j<m;j++){
+      const cell=document.createElement('div'); cell.className='cell';
+      const v=vis[i][j], g=origGrid[i][j];
+      const isNew = newRot && newRot.some(([r,c])=>r===i&&c===j);
+      const isActive = activeCell && activeCell[0]===i && activeCell[1]===j;
+      if(g===0){ cell.classList.add('empty'); cell.innerHTML='<span class="cell-label">empty</span>'; }
+      else if(v===2 && isNew){ cell.classList.add('rotting'); cell.innerHTML='🍊<span class="cell-label">rotting</span>'; }
+      else if(v===2){ cell.classList.add('rotten'); cell.innerHTML='🟠<span class="cell-label">rotten</span>'; }
+      else { cell.classList.add('fresh'); cell.innerHTML='🍊<span class="cell-label">fresh</span>'; }
+      if(isActive) cell.classList.add('active');
+      row.appendChild(cell);
+    }
+    wrap.appendChild(row);
+  }
+}
+
+function renderQueue(q){
+  const wrap=$('queue-wrap'); wrap.innerHTML='';
+  if(!q||q.length===0){ wrap.innerHTML='<span class="q-empty">Queue empty — BFS done!</span>'; return; }
+  q.slice(0,12).forEach((item,i)=>{
+    const d=document.createElement('div');
+    d.className='q-item'+(i===0?' current':'');
+    d.textContent=`(${item.r},${item.c}) t=${item.t}`;
+    wrap.appendChild(d);
+  });
+  if(q.length>12){ const d=document.createElement('div'); d.className='q-item'; d.textContent=`+${q.length-12} more`; wrap.appendChild(d); }
+}
+
+function log(html, cls=''){
+  const el=$('log');
+  const line=document.createElement('div');
+  if(cls) line.className=cls;
+  line.innerHTML=html;
+  el.appendChild(line);
+  el.scrollTop=el.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let steps=[], stepIdx=0, origGrid=[], autoTimer=null, running=false;
+
+function init(presetIdx){
+  currentPreset=presetIdx;
+  const p=PRESETS[presetIdx];
+  origGrid=p.grid;
+  const res=computeSteps(origGrid);
+  steps=res.steps;
+  stepIdx=0;
+  $('log').innerHTML='';
+  $('result-banner').className='result-banner';
+  document.querySelectorAll('.preset-btn').forEach((b,i)=>b.classList.toggle('active',i===presetIdx));
+  buildCode();
+  stopAuto();
+  applyStep(0);
+  log(`<span class="log-info">▶ New scenario: "${p.name}" — Expected answer: <b>${p.expect}</b></span>`,'log-info');
+}
+
+function applyStep(idx){
+  if(idx>=steps.length) return;
+  const s=steps[idx];
+  renderGrid(origGrid, s.vis,
+    s.type==='dequeue'?[s.r,s.c]:null,
+    s.type==='rot'?[[s.nr,s.nc]]:null);
+  renderQueue(s.queue);
+  highlightCode(s.code);
+  $('status-bar').innerHTML=s.msg;
+  $('stat-tm').textContent=s.tm??0;
+  $('stat-cnt').textContent=s.cnt!==undefined?s.cnt:(steps[idx-1]?.cnt||0);
+  $('stat-fresh').textContent=s.cntFresh||steps[0]?.cntFresh||0;
+  $('stat-q').textContent=s.queue?s.queue.length:0;
+  $('btn-step').disabled=(idx>=steps.length-1);
+
+  // log
+  if(idx>0){
+    const prev=steps[idx-1];
+    if(s.type==='rot')   log(`→ Rot (${s.nr},${s.c}) neighbor (${s.nr},${s.nc}) at t=${s.newT}`,'log-rot');
+    else if(s.type==='dequeue') log(`⬅ Dequeue (${s.r},${s.c}) t=${s.t}   tm=${s.tm}`,'log-step');
+    else if(s.type==='end'){
+      if(s.ok) log(`✅ ANSWER = ${s.tm}`,'log-done');
+      else     log(`❌ ANSWER = -1  (unreachable oranges)`,'log-fail');
+      const banner=$('result-banner');
+      if(s.ok){ banner.textContent=`✅ Answer: ${s.tm} minute(s)`; banner.className='result-banner show win'; }
+      else     { banner.textContent='❌ Answer: -1 (impossible)'; banner.className='result-banner show fail'; }
+    }
+  }
+}
+
+function step(){
+  if(stepIdx<steps.length-1){ stepIdx++; applyStep(stepIdx); }
+}
+
+function startAuto(){
+  if(running) return;
+  running=true;
+  $('btn-auto').textContent='⏸ Pause';
+  $('btn-auto').style.background='var(--yellow)';
+  function tick(){
+    if(stepIdx>=steps.length-1){ stopAuto(); return; }
+    step();
+    const delay=parseInt($('speed').value);
+    autoTimer=setTimeout(tick,delay);
+  }
+  tick();
+}
+
+function stopAuto(){
+  running=false;
+  clearTimeout(autoTimer);
+  $('btn-auto').textContent='▶ Auto Play';
+  $('btn-auto').style.background='var(--fresh)';
+}
+
+// ═══════════════════════════════════════════════
+//  PRESET BUTTONS
+// ═══════════════════════════════════════════════
+const prow=$('presets');
+PRESETS.forEach((p,i)=>{
+  const b=document.createElement('button');
+  b.className='preset-btn'; b.textContent=p.name;
+  b.onclick=()=>{ stopAuto(); init(i); };
+  prow.appendChild(b);
+});
+
+// ═══════════════════════════════════════════════
+//  EVENTS
+// ═══════════════════════════════════════════════
+$('btn-step').onclick=()=>{ stopAuto(); step(); };
+$('btn-auto').onclick=()=>{ running?stopAuto():startAuto(); };
+$('btn-reset').onclick=()=>{ stopAuto(); init(currentPreset); };
+$('speed').oninput=()=>{ $('speed-val').textContent=$('speed').value+'ms'; };
+
+// ═══════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════
+init(0);
+</script>
+</body>
+</html>
