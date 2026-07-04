@@ -2,7 +2,7 @@ import java.util.*;
 
 class Solution {
 
-    public String AlieDictionary(String[] words) {
+    public String AlienDictionary(String[] words) {
 
         Map<Character, List<Character>> adj = new HashMap<>();
         Map<Character, Integer> indegree = new HashMap<>();
