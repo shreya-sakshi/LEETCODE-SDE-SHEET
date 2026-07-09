@@ -48,7 +48,7 @@ class Solution {
                 parent.set(ulp_v , ulp_u);
 
                 int rankU = rank.get(ulp_u);
-                rank.set(ulp_u , rankU);
+                rank.set(ulp_u , rankU + 1);
             }
 
         }
