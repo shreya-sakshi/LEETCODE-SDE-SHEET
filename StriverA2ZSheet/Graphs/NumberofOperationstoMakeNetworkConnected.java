@@ -1,83 +1,43 @@
 class Solution {
-    class DisjoinSet
-    {
-        List<Integer> rank = new ArrayList<>();
-        List<Integer> parent = new ArrayList<>();
-        List<Integer> size = new ArrayList<>();
+   class DSU {
+    int[] parent;
+    int[] size;
 
-        DisjoinSet(int n)
-        {
-            for(int i=0; i<n ; i++)
-            {
-                rank.add(0);
-                parent.add(i);
-                size.add(1);
-            }
+    DSU(int n) {
+        parent = new int[n];
+        size = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            parent[i] = i;
+            size[i] = 1;
         }
-
-        public int findUPar(int node)
-        {
-            if(node == parent.get(node))
-              return node;
-            
-            int ulp = findUPar(parent.get(node));
-
-            parent.set(node,ulp);
-
-            return parent.get(node);
-
-        }
-
-        public void unionByRank(int u, int v)
-        {
-            int ulp_u = findUPar(u);
-            int ulp_v = findUPar(v);
-
-            if(ulp_u == ulp_v) return;
-
-            if(rank.get(ulp_u) < rank.get(ulp_v))
-            {
-                parent.set(ulp_u,ulp_v);
-            }
-            else if(rank.get(ulp_v) < rank.get(ulp_u))
-            {
-                parent.set(ulp_v,ulp_u);
-            }
-            else
-            {
-                parent.set(ulp_v , ulp_u);
-
-                int rankU = rank.get(ulp_u);
-                rank.set(ulp_u , rankU + 1);
-            }
-
-        }
-
-        public void unionBySize(int u, int v)
-        {
-            int ulp_u = findUPar(u);
-            int ulp_v = findUPar(v);
-
-            if(ulp_u == ulp_v) return;
-
-            if(size.get(ulp_u) < size.get(ulp_v))
-            {
-                parent.set(ulp_u,ulp_v);
-                size.set(ulp_v , size.get(ulp_v) + size.get(ulp_u));
-            }
-            else 
-            {
-                parent.set(ulp_v,ulp_u);
-                size.set(ulp_u , size.get(ulp_u) + size.get(ulp_v));
-            }
-
-        }
-
-
     }
+
+    int findUPar(int x) {
+        if (parent[x] == x)
+            return x;
+
+        return parent[x] = findUPar(parent[x]);
+    }
+
+    void unionBySize(int u, int v) {
+        int pu = findUPar(u);
+        int pv = findUPar(v);
+
+        if (pu == pv) return;
+
+        if (size[pu] < size[pv]) {
+            parent[pu] = pv;
+            size[pv] += size[pu];
+        } else {
+            parent[pv] = pu;
+            size[pu] += size[pv];
+        }
+    }
+}
     public int makeConnected(int n, int[][] connections) {
 
-        DisjoinSet ds = new DisjoinSet(n);
+        DSU ds = new DSU(n);
 
         int cntExtras =0;
         int m = connections.length;
@@ -99,7 +59,7 @@ class Solution {
         int cntC=0;
         for(int i=0 ; i<n ; i++)
         {
-            if(ds.parent.get(i) == i) cntC++;
+            if(ds.findUPar(i) == i) cntC++;
 
         }
         int ans=cntC-1 ;
