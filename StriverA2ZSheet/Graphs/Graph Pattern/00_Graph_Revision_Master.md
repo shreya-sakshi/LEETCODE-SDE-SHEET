@@ -16,6 +16,23 @@ then jump to that section for recognition triggers + complete working code.
 
 ---
 
+## Visual Decision Tree
+
+```mermaid
+flowchart TD
+    A[Graph / grid] --> B{Goal?}
+    B -->|explore whole region| C[DFS / Flood Fill]
+    B -->|shortest unweighted| D[BFS]
+    B -->|weighted shortest path| E[Dijkstra]
+    B -->|negative weights| F[Bellman-Ford]
+    B -->|all pairs shortest| G[Floyd-Warshall]
+    B -->|order / prerequisites| H[Topological Sort]
+    B -->|connect all cheaply| I[MST Prim/Kruskal]
+    B -->|same group / merge| J[Union-Find]
+```
+
+---
+
 ## Master Decision Table
 
 | If the problem asks for...                                   | Pattern                     | Go To |
