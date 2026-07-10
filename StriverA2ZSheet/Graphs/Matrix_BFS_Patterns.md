@@ -69,7 +69,7 @@ while(!q.isEmpty()) {
 
 
 ## Typical Problems
-994   Rotten Oranges
-542   01 Matrix
-1091  Shortest Path in Binary Matrix
+994.  Rotten Oranges
+542.  01 Matrix
+1091.  Shortest Path in Binary Matrix
 
