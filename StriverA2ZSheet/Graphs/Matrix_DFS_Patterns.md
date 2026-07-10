@@ -75,7 +75,7 @@ void dfs(int r, int c) {
 
 ## Typical Problems
 
-- 200. Number of Islands
-- 695. Max Area of Island
-- 733. Flood Fill
-- 130. Surrounded Regions
+200. Number of Islands
+695. Max Area of Island
+733. Flood Fill
+130. Surrounded Regions
