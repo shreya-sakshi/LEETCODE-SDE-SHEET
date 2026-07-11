@@ -129,6 +129,8 @@ class Solution {
     }
 }
 
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //This code is solving the **Number of Islands II** problem using **Disjoint Set Union (DSU/Union-Find)**. Every operator adds land to a grid, and after each addition, the code records the current number of islands.
 
 Let's go through it **line by line**.
